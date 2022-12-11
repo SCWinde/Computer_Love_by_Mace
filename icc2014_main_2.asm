@@ -27,11 +27,11 @@
 */
 
 // Import library, contains aliases for video chip registers
-.import source "shared_VIC.kas"
+#import "shared_VIC.asm"
 
 // Load external files
 .var musicFile = LoadSid("Computer_Love_v2.sid")
-.var logoFile = LoadPicture("erwin_logo_320x96.gif")
+.var logoFile = LoadPicture("cbmlove_logo_320x96.gif")
 
 .var ctmTemplate = "CtmHeader=0,CtmSize=10,CtmPadding=12,CtmData=24"
 .var fontFile = LoadBinary("hr 1x1 (7x6) - Mace 2014 Intro Compo font.ctm", ctmTemplate)
@@ -41,14 +41,14 @@
 
 // first area for plotting the dycp
 .align $8
-.pc = * "GFX: plot area 1"
+.memblock "GFX: plot area 1"
 plotArea:
 	.fill 240*8,00
 
 // This subroutine fetches 40 characters from scrollText and
 // puts it in a buffer, so the DYCP routine doesn't need to 'think'
 // where to get the text from.
-.pc = * "CODE: bufferScroll"
+.memblock "CODE: bufferScroll"
 bufferScroll:
 	ldy #$00				// Counter for filling textBuffer
 	ldx #$00				// Counter for reading scrollText
@@ -84,12 +84,12 @@ bufferScroll:
 	noPage:
 		rts					// End of subroutine
 
-.pc = * "BUFFER: text buffer"
+.memblock "BUFFER: text buffer"
 textBuffer:
 	.fill 40,20				// This will be filled with text
 
 .align $8
-.pc = * "GFX: fill char"
+.memblock "GFX: fill char"
 	.fill 8,0				// empty char $ff
 
 // Load the music
@@ -105,28 +105,28 @@ textBuffer:
 
 // raw sine data
 .align $100
-.pc = * "DATA: sine data"
+.memblock "DATA: sine data"
 sinData:
 	.fill 128,20 + 20*sin(toRadians(i*2880/256))
 
 // room for sprites
 .align $40
-.pc = * "GFX: sprite 1"
+.memblock "GFX: sprite 1"
 spriteMultiCol:
 	.for (var x=0; x<21; x++)
 		.byte %01010000, %11110000, %10100000
 
 .align $40
-.pc = * "GFX: sprite 2"
+.memblock "GFX: sprite 2"
 spriteSingleCol:
 	.for (var x=0; x<21; x++)
 		.byte %11110000, %00000000, %00000000
 
 // the character screen goes here
 .align $0400
-.pc = * "GFX: screen"
+.memblock "GFX: screen"
 screen:
-	.import source "icc2014_screen.kas"
+	#import "icc2014_screen.asm"
 
 .pc = screen + $3f8 "DATA: spritepointers"
 spritePointers:
@@ -134,11 +134,11 @@ spritePointers:
 
 // Load the font
 .align $100
-.pc = * "GFX: font (external file, CTM)"
+.memblock "GFX: font (external file, CTM)"
 font:
 	.fill 384, fontFile.getCtmData([[i*8] & $1ff] + floor(i/64))
 
-.pc = * "CODE: init"
+.memblock "CODE: init"
 start:
 		sei						// START
 		lda #$00
@@ -233,7 +233,7 @@ loop:
 		cli						// enable IRQ
 		rts						// exit
 
-.pc = * "CODE: irq 1"
+.memblock "CODE: irq 1"
 irq1:							// LOGO AREA
 		asl $d019				// ack IRQ
 		lda #[[screen/$400]<<4]|[[$2000/$800]<<1]	// set screen
@@ -251,7 +251,7 @@ irq1:							// LOGO AREA
 		ldy #>irq2
 		jmp irqend				// end IRQ
 
-.pc = * "CODE: irq 2"
+.memblock "CODE: irq 2"
 irq2:							// START OF BLUE AREA WITH DYCP
 		asl $d019				// ack IRQ
 		nop						// timer NOPs
@@ -312,7 +312,7 @@ noResetSin:
 sinCounter:
 		.byte $00
 
-.pc = * "CODE: irq 3"
+.memblock "CODE: irq 3"
 irq3:						// END OF BLUE AREA
 		asl $d019			// ack IRQ
 		nop					// timer NOPs
@@ -353,7 +353,7 @@ tinyTimeLoop:
 
 		jmp irqend			// end of IRQ3
 
-.pc = * "CODE: irq 4"
+.memblock "CODE: irq 4"
 irq4:						// TO OPEN BORDERS
 		asl $d019			// ack IRQ
 		nop
@@ -386,7 +386,7 @@ irqend:						// WHERE EVERYTHING ENDS
 		pla
 		rti					// end IRQ
 
-.pc = * "CODE: createDycp"
+.memblock "CODE: createDycp"
 createDycp:					// Unroll DYCP routine (40 characters)
 .for (var dycpPosition=0; dycpPosition<40; dycpPosition++) {
 		
@@ -394,7 +394,7 @@ createDycp:					// Unroll DYCP routine (40 characters)
 		// Ghostbyte always needs to be $00 in order to have clear
 		// borders. Code has to bypass $00 (=BRK), fixing can only be
 		// done by hand.
-		.print "Unrolled code for char " + dycpPosition + " starts at $" + toHexString(*)
+		// .print "Unrolled code for char " + dycpPosition + " starts at $" + toHexString(*)
 		
 		lda #$00							// clear old DYCP
 .label oldData = *+1
@@ -430,10 +430,10 @@ createDycp:					// Unroll DYCP routine (40 characters)
 		rts									// end of subroutine
 
 // sinBuffers
-.pc = * "BUFFER: sine buffer"
+.memblock "BUFFER: sine buffer"
 sinBuffer:									// Buffer for sine data
 	.fill 40,0
 
-.pc = * "DATA: scrolltext (external file, KAS)"
+.memblock "DATA: scrolltext (external file, KAS)"
 scrollText:									// Scroll text (external file)
-	.import source "icc2014_scrolltext2.kas"
+	#import "icc2014_scrolltext2.asm"
